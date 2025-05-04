@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MongoDB.Driver;
+using System.Security.Claims;
 using WebApiTaller.Models;
 using WebApiTaller.Models.DTO.DTOUser;
 
@@ -19,12 +20,21 @@ public class UserController : ControllerBase
 
     [Authorize]
     [HttpGet]
-    public async Task<IActionResult> GetAll()
+    public async Task<IActionResult> GetAll([FromQuery] string? name, [FromQuery] string? surname)
     {
-        if (!IsAuthorized(out var unauthorizedResult))
-            return unauthorizedResult;
+        //if (!IsAuthorized(out var unauthorizedResult))
+        //    return unauthorizedResult;
 
-        var users = await _users.Find(_ => true).ToListAsync();
+        var filterBuilder = Builders<User>.Filter;
+        var filter = filterBuilder.Empty;
+
+        if (!string.IsNullOrEmpty(name))
+            filter &= filterBuilder.Eq(u => u.Name, name);
+
+        if (!string.IsNullOrEmpty(surname))
+            filter &= filterBuilder.Eq(u => u.Surname, surname);
+
+        var users = await _users.Find(filter).ToListAsync();
         var dtoUsers = users.Select(u => new DTOUserReadAll
         {
             Id = u.Id,
@@ -39,8 +49,8 @@ public class UserController : ControllerBase
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(string id)
     {
-        if (!IsAuthorized(out var unauthorizedResult))
-            return unauthorizedResult;
+        //if (!IsAuthorized(out var unauthorizedResult))
+        //    return unauthorizedResult;
 
         var user = await _users.Find(u => u.Id == id).FirstOrDefaultAsync();
         if (user == null)
@@ -78,7 +88,7 @@ public class UserController : ControllerBase
     [HttpPut("{id}")]
     public async Task<IActionResult> Update(string id, DTOUserUpdate dtoUser)
     {
-        if (!IsAuthorized(out var unauthorizedResult))
+        if (!IsAuthorized(out var unauthorizedResult) && User.FindFirst(ClaimTypes.NameIdentifier)?.Value == id)
             return unauthorizedResult;
 
         var user = new User
@@ -96,7 +106,7 @@ public class UserController : ControllerBase
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(string id)
     {
-        if (!IsAuthorized(out var unauthorizedResult))
+        if (!IsAuthorized(out var unauthorizedResult) && User.FindFirst(ClaimTypes.NameIdentifier)?.Value == id)
             return unauthorizedResult;
 
         var result = await _users.DeleteOneAsync(u => u.Id == id);

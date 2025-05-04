@@ -20,12 +20,29 @@ public class InvoiceController : ControllerBase
 
     [Authorize]
     [HttpGet]
-    public async Task<IActionResult> GetAll()
+    public async Task<IActionResult> GetAll([FromQuery] string? clientId, [FromQuery] string? maintenanceId, [FromQuery] DateTime? startDate, [FromQuery] DateTime? endDate)
     {
         if (!IsAuthorized(out var unauthorizedResult))
             return unauthorizedResult;
 
-        var invoices = await _invoices.Find(_ => true).ToListAsync();
+        var workshopId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0";
+
+        var filterBuilder = Builders<Invoice>.Filter;
+        var filter = filterBuilder.Eq(i => i.WorkshopId, workshopId);
+
+        if (!string.IsNullOrEmpty(clientId))
+            filter &= filterBuilder.Eq(i => i.ClientId, clientId);
+
+        if (!string.IsNullOrEmpty(maintenanceId))
+            filter &= filterBuilder.Eq(i => i.MaintenanceId, maintenanceId);
+
+        if (startDate.HasValue)
+            filter &= filterBuilder.Gte(i => i.Date, startDate.Value);
+
+        if (endDate.HasValue)
+            filter &= filterBuilder.Lte(i => i.Date, endDate.Value);
+
+        var invoices = await _invoices.Find(filter).ToListAsync();
         var dtoInvoices = invoices.Select(i => new DTOInvoiceRead
         {
             Id = i.Id,
@@ -58,6 +75,21 @@ public class InvoiceController : ControllerBase
 
         await _invoices.InsertOneAsync(invoice);
         return CreatedAtAction(nameof(GetAll), null, invoice);
+    }
+
+    [Authorize]
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> Delete(string id)
+    {
+        if (!IsAuthorized(out var unauthorizedResult))
+            return unauthorizedResult;
+
+        var result = await _invoices.DeleteOneAsync(i => i.Id == id);
+
+        if (result.DeletedCount == 0)
+            return NotFound(new { message = "Invoice not found." });
+
+        return NoContent();
     }
 
     private bool IsAuthorized(out IActionResult unauthorizedResult)

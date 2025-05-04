@@ -19,15 +19,26 @@ public class ComponentController : ControllerBase
 
     [Authorize]
     [HttpGet]
-    public async Task<IActionResult> GetAll()
+    public async Task<IActionResult> GetAll(
+        [FromQuery] string? name,
+        [FromQuery] string? Parent)
     {
         if (!IsAuthorized(out var unauthorizedResult))
             return unauthorizedResult;
 
-        var components = await _components.Find(_ => true).ToListAsync();
+        var filter = Builders<Component>.Filter.Empty;
+
+        if (!string.IsNullOrEmpty(name))
+            filter &= Builders<Component>.Filter.Eq(o => o.Name, name);
+
+        if (!string.IsNullOrEmpty(Parent))
+            filter &= Builders<Component>.Filter.Eq(o => o.ParentAssemblyId, Parent);
+
+        var components = await _components.Find(filter).ToListAsync();
+
         var dtoComponents = components.Select(c => new DTOComponentRead
         {
-            Id = c.Id,
+            Id = c.Id ?? string.Empty,
             Name = c.Name,
             Description = c.Description,
             ParentAssemblyId = c.ParentAssemblyId
@@ -52,6 +63,25 @@ public class ComponentController : ControllerBase
 
         await _components.InsertOneAsync(component);
         return CreatedAtAction(nameof(GetAll), null, component);
+    }
+
+    [Authorize]
+    [HttpPut("{id}")]
+    public async Task<IActionResult> Update(string id, DTOComponentPut dtoComponent)
+    {
+        if (!IsAuthorized(out var unauthorizedResult))
+            return unauthorizedResult;
+
+        var component = new Component
+        {
+            Id = id,
+            Name = dtoComponent.Name,
+            Description = dtoComponent.Description,
+            ParentAssemblyId = dtoComponent.ParentAssemblyId
+        };
+
+        var result = await _components.ReplaceOneAsync(u => u.Id == id, component);
+        return result.ModifiedCount > 0 ? NoContent() : NotFound();
     }
 
     private bool IsAuthorized(out IActionResult unauthorizedResult)

@@ -22,7 +22,9 @@ public class MaintenanceOrderController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetFiltered(
         [FromQuery] string? vehicle,
-        [FromQuery] string? component)
+        [FromQuery] string? component,
+        [FromQuery] DateTime? startDate,
+        [FromQuery] DateTime? endDate)
     {
         if (!IsAuthorized(out var unauthorizedResult))
             return unauthorizedResult;
@@ -36,6 +38,12 @@ public class MaintenanceOrderController : ControllerBase
 
         if (component != null)
             filter &= Builders<MaintenanceOrder>.Filter.AnyEq(o => o.ComponentId, component);
+
+        if (startDate.HasValue)
+            filter &= Builders<MaintenanceOrder>.Filter.Gte(o => o.Date, startDate.Value);
+
+        if (endDate.HasValue)
+            filter &= Builders<MaintenanceOrder>.Filter.Lte(o => o.Date, endDate.Value);
 
         var results = await _orders.Find(filter).ToListAsync();
         var dtoResults = results.Select(o => new DTOMaintenanceOrderRead
@@ -71,6 +79,21 @@ public class MaintenanceOrderController : ControllerBase
 
         await _orders.InsertOneAsync(order);
         return CreatedAtAction(nameof(GetFiltered), null, order);
+    }
+
+    [Authorize]
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> Delete(string id)
+    {
+        if (!IsAuthorized(out var unauthorizedResult))
+            return unauthorizedResult;
+
+        var result = await _orders.DeleteOneAsync(o => o.Id == id);
+
+        if (result.DeletedCount == 0)
+            return NotFound(new { message = "Maintenance order not found." });
+
+        return NoContent();
     }
 
     private bool IsAuthorized(out IActionResult unauthorizedResult)

@@ -20,12 +20,18 @@ public class VehicleController : ControllerBase
 
     [Authorize]
     [HttpGet]
-    public async Task<IActionResult> GetAll()
+    public async Task<IActionResult> GetAll([FromQuery] string? license, [FromQuery] string? userId)
     {
-        if (!IsAuthorized(out var unauthorizedResult))
-            return unauthorizedResult;
+        var filterBuilder = Builders<Vehicle>.Filter;
+        var filter = filterBuilder.Empty;
 
-        var vehicles = await _vehicles.Find(_ => true).ToListAsync();
+        if (!string.IsNullOrEmpty(license))
+            filter &= filterBuilder.Eq(v => v.License, license);
+
+        if (!string.IsNullOrEmpty(userId))
+            filter &= filterBuilder.Eq(v => v.UserId, userId);
+
+        var vehicles = await _vehicles.Find(filter).ToListAsync();
         var dtoVehicles = vehicles.Select(v => new DTOVehicleReadAll
         {
             Id = v.Id,
@@ -40,8 +46,6 @@ public class VehicleController : ControllerBase
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(string id)
     {
-        if (!IsAuthorized(out var unauthorizedResult))
-            return unauthorizedResult;
 
         var vehicle = await _vehicles.Find(v => v.Id == id).FirstOrDefaultAsync();
         if (vehicle == null)
@@ -89,7 +93,7 @@ public class VehicleController : ControllerBase
     [HttpPut("{id}")]
     public async Task<IActionResult> Update(string id, DTOVehicleUpdate dtoVehicle)
     {
-        if (!IsAuthorized(out var unauthorizedResult))
+        if (!IsAuthorized(out var unauthorizedResult) && User.FindFirst(ClaimTypes.NameIdentifier)?.Value == dtoVehicle.UserId)
             return unauthorizedResult;
 
         var vehicle = new Vehicle
@@ -114,6 +118,15 @@ public class VehicleController : ControllerBase
     {
         if (!IsAuthorized(out var unauthorizedResult))
             return unauthorizedResult;
+
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var vehicle = await _vehicles.Find(v => v.Id == id).FirstOrDefaultAsync();
+
+        if (vehicle == null)
+            return NotFound();
+
+        if (vehicle.UserId != userId)
+            return Unauthorized(new { message = "You are not authorized to delete this vehicle." });
 
         var result = await _vehicles.DeleteOneAsync(v => v.Id == id);
         return result.DeletedCount > 0 ? NoContent() : NotFound();

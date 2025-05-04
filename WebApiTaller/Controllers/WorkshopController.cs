@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MongoDB.Driver;
+using System.Security.Claims;
 using WebApiTaller.Models;
 using WebApiTaller.Models.DTO.DTOWorkshop;
 
@@ -19,12 +20,21 @@ public class WorkshopController : ControllerBase
 
     [Authorize]
     [HttpGet]
-    public async Task<IActionResult> GetAll()
+    public async Task<IActionResult> GetAll([FromQuery] string? nif, [FromQuery] string? location, [FromQuery] string? speciality)
     {
-        if (!IsAuthorized(out var unauthorizedResult))
-            return unauthorizedResult;
+        var filterBuilder = Builders<Workshop>.Filter;
+        var filter = filterBuilder.Empty;
 
-        var workshops = await _workshops.Find(_ => true).ToListAsync();
+        if (!string.IsNullOrEmpty(nif))
+            filter &= filterBuilder.Eq(w => w.Nif, nif);
+
+        if (!string.IsNullOrEmpty(location))
+            filter &= filterBuilder.Eq(w => w.Location, location);
+
+        if (!string.IsNullOrEmpty(speciality))
+            filter &= filterBuilder.Eq(w => w.Speciality, speciality);
+
+        var workshops = await _workshops.Find(filter).ToListAsync();
         var dtoWorkshops = workshops.Select(w => new DTOWorkshopRead
         {
             Id = w.Id,
@@ -52,6 +62,26 @@ public class WorkshopController : ControllerBase
 
         await _workshops.InsertOneAsync(workshop);
         return CreatedAtAction(nameof(GetAll), null, workshop);
+    }
+
+    [Authorize]
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> Delete(string id)
+    {
+        if (!IsAuthorized(out var unauthorizedResult))
+            return unauthorizedResult;
+
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        if (userId != id)
+            return Forbid("You can only delete your own workshop");
+
+        var result = await _workshops.DeleteOneAsync(w => w.Id == id);
+
+        if (result.DeletedCount == 0)
+            return NotFound(new { message = "Workshop not found." });
+
+        return NoContent();
     }
 
     private bool IsAuthorized(out IActionResult unauthorizedResult)
