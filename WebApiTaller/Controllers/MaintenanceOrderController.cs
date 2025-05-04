@@ -44,7 +44,7 @@ public class MaintenanceOrderController : ControllerBase
             WorkshopId = o.WorkshopId,
             VehicleId = o.VehicleId,
             ComponentIds = o.ComponentId,
-            Date = o.Date,
+            Date = o.Date ?? DateTime.Now,
             Description = o.Description
         });
 
