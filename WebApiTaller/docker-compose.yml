@@ -18,6 +18,7 @@
     build:
       context: ..
       dockerfile: WebApiTaller/Dockerfile
+    container_name: webapitaller
     depends_on:
       - mongodb
     environment:

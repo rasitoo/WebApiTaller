@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using MongoDB.Driver;
 using WebApiTaller.Models;
 
@@ -15,32 +16,72 @@ public class UserController : ControllerBase
         _users = database.GetCollection<User>("users");
     }
 
+    [Authorize]
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<User>>> GetAll() =>
-        Ok(await _users.Find(_ => true).ToListAsync());
+    public async Task<ActionResult<IEnumerable<User>>> GetAll()
+    {
+        if (!IsAuthorized(out var unauthorizedResult))
+            return unauthorizedResult;
 
+        var users = await _users.Find(_ => true).ToListAsync();
+        return Ok(users);
+    }
+
+    [Authorize]
     [HttpGet("{id}")]
-    public async Task<ActionResult<User>> GetById(string id) =>
-        Ok(await _users.Find(u => u.Id == id).FirstOrDefaultAsync());
+    public async Task<ActionResult<User>> GetById(string id)
+    {
+        if (!IsAuthorized(out var unauthorizedResult))
+            return unauthorizedResult;
 
+        var user = await _users.Find(u => u.Id == id).FirstOrDefaultAsync();
+        return Ok(user);
+    }
+
+    [Authorize]
     [HttpPost]
     public async Task<IActionResult> Create(User user)
     {
+        if (!IsAuthorized(out var unauthorizedResult))
+            return unauthorizedResult;
+
         await _users.InsertOneAsync(user);
         return CreatedAtAction(nameof(GetById), new { id = user.Id }, user);
     }
 
+    [Authorize]
     [HttpPut("{id}")]
     public async Task<IActionResult> Update(string id, User updatedUser)
     {
+        if (!IsAuthorized(out var unauthorizedResult))
+            return unauthorizedResult;
+
         var result = await _users.ReplaceOneAsync(u => u.Id == id, updatedUser);
         return result.ModifiedCount > 0 ? NoContent() : NotFound();
     }
 
+    [Authorize]
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(string id)
     {
+        if (!IsAuthorized(out var unauthorizedResult))
+            return unauthorizedResult;
+
         var result = await _users.DeleteOneAsync(u => u.Id == id);
         return result.DeletedCount > 0 ? NoContent() : NotFound();
+    }
+
+    private bool IsAuthorized(out IActionResult unauthorizedResult)
+    {
+        var userType = User.FindFirst("UserType")?.Value;
+
+        if (userType != "1")
+        {
+            unauthorizedResult = Unauthorized(new { message = "Only users are allowed." });
+            return false;
+        }
+
+        unauthorizedResult = null!;
+        return true;
     }
 }
