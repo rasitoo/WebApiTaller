@@ -1,7 +1,9 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using MongoDB.Driver;
+using System.Security.Claims;
 using WebApiTaller.Models;
-using Microsoft.AspNetCore.Authorization;
+using WebApiTaller.Models.DTO.DTOMaintenanceOrder;
 
 namespace WebApiTaller.Controllers;
 
@@ -22,36 +24,57 @@ public class MaintenanceOrderController : ControllerBase
         [FromQuery] string? vehicle,
         [FromQuery] string? component)
     {
-        if (!IsAuthorized(out var unauthorizedResult, out var userId))
+        if (!IsAuthorized(out var unauthorizedResult))
             return unauthorizedResult;
 
-        var filter = Builders<MaintenanceOrder>.Filter.Eq(o => o.WorkshopId, userId);
+        var workshopId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0";
 
-        if (!string.IsNullOrEmpty(vehicle))
+        var filter = Builders<MaintenanceOrder>.Filter.Eq(o => o.WorkshopId, workshopId);
+
+        if (vehicle != null)
             filter &= Builders<MaintenanceOrder>.Filter.Eq(o => o.VehicleId, vehicle);
 
-        if (!string.IsNullOrEmpty(component))
-            filter &= Builders<MaintenanceOrder>.Filter.Eq(o => o.ComponentId, component);
+        if (component != null)
+            filter &= Builders<MaintenanceOrder>.Filter.AnyEq(o => o.ComponentId, component);
 
         var results = await _orders.Find(filter).ToListAsync();
-        return Ok(results);
+        var dtoResults = results.Select(o => new DTOMaintenanceOrderRead
+        {
+            Id = o.Id,
+            WorkshopId = o.WorkshopId,
+            VehicleId = o.VehicleId,
+            ComponentIds = o.ComponentId,
+            Date = o.Date,
+            Description = o.Description
+        });
+
+        return Ok(dtoResults);
     }
 
     [Authorize]
     [HttpPost]
-    public async Task<IActionResult> Create(MaintenanceOrder order)
+    public async Task<IActionResult> Create(DTOMaintenanceOrderPost dtoOrder)
     {
-        if (!IsAuthorized(out var unauthorizedResult, out var userId))
+        if (!IsAuthorized(out var unauthorizedResult))
             return unauthorizedResult;
 
-        order.WorkshopId = userId;
+        var workshopId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0";
+
+        var order = new MaintenanceOrder
+        {
+            WorkshopId = workshopId,
+            VehicleId = dtoOrder.VehicleId,
+            ComponentId = dtoOrder.ComponentIds,
+            Date = dtoOrder.Date,
+            Description = dtoOrder.Description
+        };
+
         await _orders.InsertOneAsync(order);
         return CreatedAtAction(nameof(GetFiltered), null, order);
     }
 
-    private bool IsAuthorized(out IActionResult unauthorizedResult, out string userId)
+    private bool IsAuthorized(out IActionResult unauthorizedResult)
     {
-        userId = User.FindFirst("NameIdentifier")?.Value;
         var userType = User.FindFirst("UserType")?.Value;
 
         if (userType != "2")

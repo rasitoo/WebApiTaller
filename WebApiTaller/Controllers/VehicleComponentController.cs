@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using MongoDB.Driver;
 using WebApiTaller.Models;
+using WebApiTaller.Models.DTO.DTOVehicleComponent;
 
 namespace WebApiTaller.Controllers;
 
@@ -18,24 +19,24 @@ public class VehicleComponentController : ControllerBase
 
     [Authorize]
     [HttpPost]
-    public async Task<IActionResult> AddComponent(string vehicleId, [FromBody] string componentId)
+    public async Task<IActionResult> AddComponent(string vehicleId, DTOVehicleComponentAdd dto)
     {
         if (!IsAuthorized(out var unauthorizedResult))
             return unauthorizedResult;
 
-        var update = Builders<Vehicle>.Update.AddToSet(v => v.Components, componentId);
+        var update = Builders<Vehicle>.Update.AddToSet(v => v.ComponentIds, dto.ComponentId);
         var result = await _vehicles.UpdateOneAsync(v => v.Id == vehicleId, update);
         return result.ModifiedCount > 0 ? NoContent() : NotFound();
     }
 
     [Authorize]
-    [HttpDelete("{componentId}")]
-    public async Task<IActionResult> RemoveComponent(string vehicleId, string componentId)
+    [HttpDelete]
+    public async Task<IActionResult> RemoveComponent(string vehicleId, DTOVehicleComponentRemove dto)
     {
         if (!IsAuthorized(out var unauthorizedResult))
             return unauthorizedResult;
 
-        var update = Builders<Vehicle>.Update.Pull(v => v.Components, componentId);
+        var update = Builders<Vehicle>.Update.Pull(v => v.ComponentIds, dto.ComponentId);
         var result = await _vehicles.UpdateOneAsync(v => v.Id == vehicleId, update);
         return result.ModifiedCount > 0 ? NoContent() : NotFound();
     }

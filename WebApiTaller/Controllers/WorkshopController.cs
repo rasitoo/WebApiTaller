@@ -1,8 +1,8 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MongoDB.Driver;
-using System.Security.Claims;
 using WebApiTaller.Models;
+using WebApiTaller.Models.DTO.DTOWorkshop;
 
 namespace WebApiTaller.Controllers;
 
@@ -21,27 +21,50 @@ public class WorkshopController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
-        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        var userType = User.FindFirst("UserType")?.Value;
+        if (!IsAuthorized(out var unauthorizedResult))
+            return unauthorizedResult;
 
-        if (userType != "2")
-            return Unauthorized(new { message = "Only workshops are allowed." }); 
+        var workshops = await _workshops.Find(_ => true).ToListAsync();
+        var dtoWorkshops = workshops.Select(w => new DTOWorkshopRead
+        {
+            Id = w.Id,
+            Nif = w.Nif,
+            Location = w.Location,
+            Speciality = w.Speciality
+        });
 
-        return Ok(await _workshops.Find(_ => true).ToListAsync());
+        return Ok(dtoWorkshops);
     }
 
     [Authorize]
     [HttpPost]
-    public async Task<IActionResult> Create(Workshop workshop)
+    public async Task<IActionResult> Create(DTOWorkshopPost dtoWorkshop)
     {
-        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        var userType = User.FindFirst("UserType")?.Value;
+        if (!IsAuthorized(out var unauthorizedResult))
+            return unauthorizedResult;
 
-        if (userType != "2")
-            return Unauthorized(new { message = "Only workshops are allowed." });
+        var workshop = new Workshop
+        {
+            Nif = dtoWorkshop.Nif,
+            Location = dtoWorkshop.Location,
+            Speciality = dtoWorkshop.Speciality
+        };
 
         await _workshops.InsertOneAsync(workshop);
         return CreatedAtAction(nameof(GetAll), null, workshop);
     }
-}
 
+    private bool IsAuthorized(out IActionResult unauthorizedResult)
+    {
+        var userType = User.FindFirst("UserType")?.Value;
+
+        if (userType != "2")
+        {
+            unauthorizedResult = Unauthorized(new { message = "Only workshops are allowed." });
+            return false;
+        }
+
+        unauthorizedResult = null!;
+        return true;
+    }
+}

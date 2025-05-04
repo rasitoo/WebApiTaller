@@ -1,8 +1,8 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MongoDB.Driver;
-using System.Security.Claims;
 using WebApiTaller.Models;
+using WebApiTaller.Models.DTO.DTOComponent;
 
 namespace WebApiTaller.Controllers;
 
@@ -25,15 +25,30 @@ public class ComponentController : ControllerBase
             return unauthorizedResult;
 
         var components = await _components.Find(_ => true).ToListAsync();
-        return Ok(components);
+        var dtoComponents = components.Select(c => new DTOComponentRead
+        {
+            Id = c.Id,
+            Name = c.Name,
+            Description = c.Description,
+            ParentAssemblyId = c.ParentAssemblyId
+        });
+
+        return Ok(dtoComponents);
     }
 
     [Authorize]
     [HttpPost]
-    public async Task<IActionResult> Create(Component component)
+    public async Task<IActionResult> Create(DTOComponentPost dtoComponent)
     {
         if (!IsAuthorized(out var unauthorizedResult))
             return unauthorizedResult;
+
+        var component = new Component
+        {
+            Name = dtoComponent.Name,
+            Description = dtoComponent.Description,
+            ParentAssemblyId = dtoComponent.ParentAssemblyId
+        };
 
         await _components.InsertOneAsync(component);
         return CreatedAtAction(nameof(GetAll), null, component);
