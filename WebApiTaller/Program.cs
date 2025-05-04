@@ -49,10 +49,14 @@ var dbPassword = builder.Configuration["DbSettings:Password"];
 var dbName = builder.Configuration["DbSettings:Database"];
 
 var connectionString = $"mongodb://{dbUsername}:{dbPassword}@{dbHost}:{dbPort}";
-var mongoClient = new MongoClient(connectionString);
-var dbContextOptions = new DbContextOptionsBuilder<MdbContext>()
-.UseMongoDB(mongoClient, dbName);
-var db = new MdbContext(dbContextOptions.Options);
+
+builder.Services.AddSingleton<IMongoClient>(sp => new MongoClient(connectionString));
+
+builder.Services.AddSingleton(sp =>
+{
+    var client = sp.GetRequiredService<IMongoClient>();
+    return client.GetDatabase(dbName);
+});
 
 var secretkey = builder.Configuration["JwtSettings:SecretKey"];
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -94,8 +98,8 @@ app.UseSwaggerUI();
 
 app.UseHttpsRedirection();
 
-//app.UseAuthentication();
-//app.UseAuthorization();
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapControllers();
 

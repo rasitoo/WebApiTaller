@@ -26,6 +26,7 @@
       DbSettings__Username: root
       DbSettings__Password: example
       DbSettings__Database: mydatabase
+      JwtSettings__SecretKey: qwertyuiopasdfghjklzxcvbnmqwertyuiopasdfghjklzxcvbnm
     ports:
       - "8007:8080"
     networks:
