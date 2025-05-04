@@ -48,11 +48,11 @@ var dbUsername = builder.Configuration["DbSettings:Username"];
 var dbPassword = builder.Configuration["DbSettings:Password"];
 var dbName = builder.Configuration["DbSettings:Database"];
 
-var connectionString = $"Host={dbHost};Username={dbUsername};Password={dbPassword};Database={dbName};Port={dbPort}";
+var connectionString = $"mongodb://{dbUsername}:{dbPassword}@{dbHost}:{dbPort}";
 var mongoClient = new MongoClient(connectionString);
 var dbContextOptions = new DbContextOptionsBuilder<MdbContext>()
-.UseMongoDB(mongoClient, "<Database Name>");
-var db = new MyDbContext(dbContextOptions.Options);
+.UseMongoDB(mongoClient, dbName);
+var db = new MdbContext(dbContextOptions.Options);
 
 var secretkey = builder.Configuration["JwtSettings:SecretKey"];
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)

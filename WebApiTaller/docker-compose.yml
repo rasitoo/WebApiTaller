@@ -1,0 +1,38 @@
+﻿services:
+  mongodb:
+    image: mongo:7
+    container_name: mongo
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: example
+      MONGO_INITDB_DATABASE: mydatabase
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - taller
+
+  webapitaller:
+    image: ${DOCKER_REGISTRY-}webapitaller
+    build:
+      context: ..
+      dockerfile: WebApiTaller/Dockerfile
+    depends_on:
+      - mongodb
+    environment:
+      DbSettings__Host: mongo
+      DbSettings__Port: 27017
+      DbSettings__Username: root
+      DbSettings__Password: example
+      DbSettings__Database: mydatabase
+    ports:
+      - "8007:8080"
+    networks:
+      - taller
+
+networks:
+  taller:
+    driver: bridge
+volumes:
+  mongo_data:
