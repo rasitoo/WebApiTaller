@@ -58,6 +58,32 @@ public class MaintenanceOrderController : ControllerBase
 
         return Ok(dtoResults);
     }
+    [Authorize]
+    [HttpGet("{id}")]
+    public async Task<IActionResult> GetById(string id)
+    {
+        if (!IsAuthorized(out var unauthorizedResult))
+            return unauthorizedResult;
+
+        var workshopId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0";
+
+        var order = await _orders.Find(o => o.Id == id && o.WorkshopId == workshopId).FirstOrDefaultAsync();
+
+        if (order == null)
+            return NotFound(new { message = "Maintenance order not found." });
+
+        var dtoOrder = new DTOMaintenanceOrderRead
+        {
+            Id = order.Id,
+            WorkshopId = order.WorkshopId,
+            VehicleId = order.VehicleId,
+            ComponentIds = order.ComponentId,
+            Date = order.Date ?? DateTime.Now,
+            Description = order.Description
+        };
+
+        return Ok(dtoOrder);
+    }
 
     [Authorize]
     [HttpPost]

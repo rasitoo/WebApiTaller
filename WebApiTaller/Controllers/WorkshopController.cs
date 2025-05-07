@@ -45,6 +45,25 @@ public class WorkshopController : ControllerBase
 
         return Ok(dtoWorkshops);
     }
+    [Authorize]
+    [HttpGet("{id}")]
+    public async Task<IActionResult> GetById(string id)
+    {
+        var workshop = await _workshops.Find(w => w.Id == id).FirstOrDefaultAsync();
+        if (workshop == null)
+            return NotFound(new { message = "Workshop not found." });
+
+        var dtoWorkshop = new DTOWorkshopRead
+        {
+            Id = workshop.Id,
+            Nif = workshop.Nif,
+            Location = workshop.Location,
+            Speciality = workshop.Speciality,
+            Name = workshop.Name
+        };
+
+        return Ok(dtoWorkshop);
+    }
 
     [Authorize]
     [HttpPost]

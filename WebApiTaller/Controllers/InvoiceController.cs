@@ -55,6 +55,33 @@ public class InvoiceController : ControllerBase
 
         return Ok(dtoInvoices);
     }
+    [Authorize]
+    [HttpGet("{id}")]
+    public async Task<IActionResult> GetById(string id)
+    {
+        if (!IsAuthorized(out var unauthorizedResult))
+            return unauthorizedResult;
+
+        var workshopId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0";
+
+        var invoice = await _invoices.Find(i => i.Id == id && i.WorkshopId == workshopId).FirstOrDefaultAsync();
+
+        if (invoice == null)
+            return NotFound(new { message = "Invoice not found." });
+
+        var dtoInvoice = new DTOInvoiceRead
+        {
+            Id = invoice.Id,
+            ClientId = invoice.ClientId,
+            WorkshopId = invoice.WorkshopId,
+            MaintenanceId = invoice.MaintenanceId,
+            Total = invoice.Total,
+            Date = invoice.Date
+        };
+
+        return Ok(dtoInvoice);
+    }
+
 
     [Authorize]
     [HttpPost]

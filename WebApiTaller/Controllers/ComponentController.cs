@@ -46,6 +46,28 @@ public class ComponentController : ControllerBase
 
         return Ok(dtoComponents);
     }
+    [Authorize]
+    [HttpGet("{id}")]
+    public async Task<IActionResult> GetById(string id)
+    {
+        if (!IsAuthorized(out var unauthorizedResult))
+            return unauthorizedResult;
+
+        var component = await _components.Find(c => c.Id == id).FirstOrDefaultAsync();
+
+        if (component == null)
+            return NotFound(new { message = "Component not found." });
+
+        var dtoComponent = new DTOComponentRead
+        {
+            Id = component.Id ?? string.Empty,
+            Name = component.Name,
+            Description = component.Description,
+            ParentAssemblyId = component.ParentAssemblyId
+        };
+
+        return Ok(dtoComponent);
+    }
 
     [Authorize]
     [HttpPost]
