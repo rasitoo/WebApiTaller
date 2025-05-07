@@ -66,27 +66,6 @@ public class UserController : ControllerBase
     }
 
     [Authorize]
-    [HttpGet("{id}")]
-    public async Task<IActionResult> GetById(string id)
-    {
-        //if (!IsAuthorized(out var unauthorizedResult))
-        //    return unauthorizedResult;
-
-        var user = await _users.Find(u => u.Id == id).FirstOrDefaultAsync();
-        if (user == null)
-            return NotFound();
-
-        var dtoUser = new DTOUserReadAll
-        {
-            Id = user.Id,
-            Name = user.Name,
-            Surname = user.Surname
-        };
-
-        return Ok(dtoUser);
-    }
-
-    [Authorize]
     [HttpPost]
     public async Task<IActionResult> Create(DTOUserPost dtoUser)
     {

@@ -14,7 +14,7 @@
       - taller
 
   webapitaller:
-    image: ${DOCKER_REGISTRY-}webapitaller
+    image: ${DOCKER_REGISTRY-}rasito/webapiworkshop
     build:
       context: ..
       dockerfile: WebApiTaller/Dockerfile
