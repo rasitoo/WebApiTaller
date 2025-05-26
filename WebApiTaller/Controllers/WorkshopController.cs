@@ -20,13 +20,13 @@ public class WorkshopController : ControllerBase
 
     [Authorize]
     [HttpGet]
-    public async Task<IActionResult> GetAll([FromQuery] string? nif, [FromQuery] string? location, [FromQuery] string? speciality)
+    public async Task<IActionResult> GetAll([FromQuery] string? userId, [FromQuery] string? location, [FromQuery] string? speciality, [FromQuery] string? name)
     {
         var filterBuilder = Builders<Workshop>.Filter;
         var filter = filterBuilder.Empty;
 
-        if (!string.IsNullOrEmpty(nif))
-            filter &= filterBuilder.Eq(w => w.Nif, nif);
+        if (!string.IsNullOrEmpty(userId))
+            filter &= filterBuilder.Eq(w => w.UserId, userId);
 
         if (!string.IsNullOrEmpty(location))
             filter &= filterBuilder.Eq(w => w.Location, location);
@@ -34,17 +34,22 @@ public class WorkshopController : ControllerBase
         if (!string.IsNullOrEmpty(speciality))
             filter &= filterBuilder.Eq(w => w.Speciality, speciality);
 
+        if (!string.IsNullOrEmpty(name))
+            filter &= filterBuilder.Eq(w => w.Name, name);
+
         var workshops = await _workshops.Find(filter).ToListAsync();
-        var dtoWorkshops = workshops.Select(w => new DTOWorkshopRead
+        var dtoWorkshops = workshops.Select(w => new DTOWorkshopReadAll
         {
             Id = w.Id,
-            Nif = w.Nif,
+            UserId = w.UserId,
             Location = w.Location,
-            Speciality = w.Speciality
+            Speciality = w.Speciality,
+            Name = w.Name
         });
 
         return Ok(dtoWorkshops);
     }
+
     [Authorize]
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(string id)
@@ -53,9 +58,14 @@ public class WorkshopController : ControllerBase
         if (workshop == null)
             return NotFound(new { message = "Workshop not found." });
 
+        var jwtUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (jwtUserId != workshop.UserId)
+            return Forbid();
+
         var dtoWorkshop = new DTOWorkshopRead
         {
             Id = workshop.Id,
+            UserId = workshop.UserId,
             Nif = workshop.Nif,
             Location = workshop.Location,
             Speciality = workshop.Speciality,
@@ -72,16 +82,28 @@ public class WorkshopController : ControllerBase
         if (!IsAuthorized(out var unauthorizedResult))
             return unauthorizedResult;
 
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userId))
+            return BadRequest(new { message = "couldnt find jwtuserid." });
+
+        var exists = await _workshops.Find(w => w.UserId == userId).AnyAsync();
+        if (exists)
+            return Conflict(new { message = "already exists a workshop with that jwtuserid" });
+
         var workshop = new Workshop
         {
+            UserId = userId,
             Nif = dtoWorkshop.Nif,
             Location = dtoWorkshop.Location,
-            Speciality = dtoWorkshop.Speciality
+            Speciality = dtoWorkshop.Speciality,
+            Name = dtoWorkshop.Name
         };
 
         await _workshops.InsertOneAsync(workshop);
         return CreatedAtAction(nameof(GetAll), null, workshop);
     }
+
+
 
     [Authorize]
     [HttpDelete("{id}")]

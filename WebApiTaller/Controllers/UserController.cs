@@ -20,11 +20,8 @@ public class UserController : ControllerBase
 
     [Authorize]
     [HttpGet]
-    public async Task<IActionResult> GetAll([FromQuery] string? name, [FromQuery] string? surname)
+    public async Task<IActionResult> GetAll([FromQuery] string? name, [FromQuery] string? surname, [FromQuery] string? userId)
     {
-        //if (!IsAuthorized(out var unauthorizedResult))
-        //    return unauthorizedResult;
-
         var filterBuilder = Builders<User>.Filter;
         var filter = filterBuilder.Empty;
 
@@ -34,36 +31,45 @@ public class UserController : ControllerBase
         if (!string.IsNullOrEmpty(surname))
             filter &= filterBuilder.Eq(u => u.Surname, surname);
 
+        if (!string.IsNullOrEmpty(userId))
+            filter &= filterBuilder.Eq(u => u.UserId, userId);
+
         var users = await _users.Find(filter).ToListAsync();
         var dtoUsers = users.Select(u => new DTOUserReadAll
         {
             Id = u.Id,
+            UserId = u.UserId,
             Name = u.Name,
             Surname = u.Surname
         });
 
         return Ok(dtoUsers);
     }
+
     [Authorize]
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(string id)
     {
-        if (!IsAuthorized(out var unauthorizedResult))
-            return unauthorizedResult;
-
         var user = await _users.Find(u => u.Id == id).FirstOrDefaultAsync();
         if (user == null)
             return NotFound(new { message = "User not found." });
 
-        var dtoUser = new DTOUserReadAll
+        var jwtUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (jwtUserId != user.UserId)
+            return Forbid();
+
+        var dtoUser = new DTOUserRead
         {
             Id = user.Id,
+            UserId = user.UserId,
             Name = user.Name,
-            Surname = user.Surname
+            Surname = user.Surname,
+            dni = user.dni
         };
 
         return Ok(dtoUser);
     }
+
 
     [Authorize]
     [HttpPost]
@@ -72,8 +78,17 @@ public class UserController : ControllerBase
         if (!IsAuthorized(out var unauthorizedResult))
             return unauthorizedResult;
 
+        var userid = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userid))
+            return BadRequest(new { message = "couldnt find jwtuserid." });
+
+        var exists = await _users.Find(u => u.UserId == userid).AnyAsync();
+        if (exists)
+            return Conflict(new { message = "Already exists an user with that JWtuserId." });
+
         var user = new User
         {
+            UserId = userid,
             Name = dtoUser.Name,
             Surname = dtoUser.Surname,
             dni = dtoUser.dni
@@ -82,6 +97,7 @@ public class UserController : ControllerBase
         await _users.InsertOneAsync(user);
         return CreatedAtAction(nameof(GetById), new { id = user.Id }, user);
     }
+
 
     [Authorize]
     [HttpPut("{id}")]
