@@ -47,10 +47,10 @@ public class UserController : ControllerBase
     }
 
     [Authorize]
-    [HttpGet("{id}")]
-    public async Task<IActionResult> GetById(string id)
+    [HttpGet("{JWTid}")]
+    public async Task<IActionResult> GetById(string JWTid)
     {
-        var user = await _users.Find(u => u.Id == id).FirstOrDefaultAsync();
+        var user = await _users.Find(u => u.UserId == JWTid).FirstOrDefaultAsync();
         if (user == null)
             return NotFound(new { message = "User not found." });
 

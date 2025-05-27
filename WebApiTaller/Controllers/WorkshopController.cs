@@ -51,10 +51,10 @@ public class WorkshopController : ControllerBase
     }
 
     [Authorize]
-    [HttpGet("{id}")]
-    public async Task<IActionResult> GetById(string id)
+    [HttpGet("{JWTid}")]
+    public async Task<IActionResult> GetById(string JWTid)
     {
-        var workshop = await _workshops.Find(w => w.Id == id).FirstOrDefaultAsync();
+        var workshop = await _workshops.Find(w => w.UserId == JWTid).FirstOrDefaultAsync();
         if (workshop == null)
             return NotFound(new { message = "Workshop not found." });
 
