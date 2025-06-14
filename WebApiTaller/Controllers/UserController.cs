@@ -110,7 +110,8 @@ public class UserController : ControllerBase
         {
             Id = id,
             Name = dtoUser.Name,
-            Surname = dtoUser.Surname
+            Surname = dtoUser.Surname,
+            dni = dtoUser.DNI
         };
 
         var result = await _users.ReplaceOneAsync(u => u.Id == id, user);

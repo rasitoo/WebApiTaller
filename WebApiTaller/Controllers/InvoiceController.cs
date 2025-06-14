@@ -111,6 +111,13 @@ public class InvoiceController : ControllerBase
         if (!IsAuthorized(out var unauthorizedResult))
             return unauthorizedResult;
 
+        var workshopId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0";
+
+        var invoice = await _invoices.Find(i => i.Id == id && i.WorkshopId == workshopId).FirstOrDefaultAsync();
+
+        if (invoice == null)
+            return NotFound(new { message = "Invoice not found." });
+
         var result = await _invoices.DeleteOneAsync(i => i.Id == id);
 
         if (result.DeletedCount == 0)

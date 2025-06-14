@@ -2,7 +2,7 @@
 
 public class DTOUserUpdate
 {
-    public string Id { get; set; }
+    public string DNI { get; set; }
     public string Name { get; set; }
     public string Surname { get; set; }
 }
