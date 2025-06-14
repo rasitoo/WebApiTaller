@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Mvc;
 using MongoDB.Driver;
 using System.Security.Claims;
 using WebApiTaller.Models;
+using WebApiTaller.Models.DTO.DTOUser;
+using WebApiTaller.Models.DTO.DTOVehicle;
 using WebApiTaller.Models.DTO.DTOWorkshop;
 
 namespace WebApiTaller.Controllers;
@@ -123,6 +125,29 @@ public class WorkshopController : ControllerBase
             return NotFound(new { message = "Workshop not found." });
 
         return NoContent();
+    }
+
+    [Authorize]
+    [HttpPut("{id}")]
+    public async Task<IActionResult> Update(string id, DTOWorkshopUpdate dtoWorkshop)
+    {
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        if (!IsAuthorized(out var unauthorizedResult) && userId == id)
+            return unauthorizedResult;
+
+        var workshop = new Workshop
+        {
+            UserId = userId,
+            Nif = dtoWorkshop.Nif,
+            Location = dtoWorkshop.Location,
+            Speciality = dtoWorkshop.Speciality,
+            Name = dtoWorkshop.Name
+        };
+
+        var result = await _workshops.ReplaceOneAsync(w => w.Id == id, workshop);
+
+        return result.ModifiedCount > 0 ? NoContent() : NotFound();
     }
 
     private bool IsAuthorized(out IActionResult unauthorizedResult)
